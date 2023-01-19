@@ -417,27 +417,26 @@ namespace Bonsai.OpenEphys
 
             uint base_address = 0x4000;
 
+            uint bank_select = (bank << 10);
+
+            uint aux_select;
+            switch (auxCommandSlot)
+            {
+                case AuxCmdSlot.AuxCmd1:
+                    aux_select = (0 << 14);
+                    break;
+                case AuxCmdSlot.AuxCmd2:
+                    aux_select = (1 << 14);
+                    break;
+                case AuxCmdSlot.AuxCmd3:
+                    aux_select = (2 << 14);
+                    break;
+                default:
+                    aux_select = 0;
+                    break;
+            }
             for (uint i = 0; i < commandList.Count; ++i)
             {
-                uint bank_select = (bank << 10);
-
-                uint aux_select;
-                switch (auxCommandSlot)
-                {
-                    case AuxCmdSlot.AuxCmd1:
-                        aux_select = (0 << 14);
-                        break;
-                    case AuxCmdSlot.AuxCmd2:
-                        aux_select = (1 << 14);
-                        break;
-                    case AuxCmdSlot.AuxCmd3:
-                        aux_select = (2 << 14);
-                        break;
-                    default:
-                        aux_select = 0;
-                        break;
-                }
-
                 ctx.WriteRegister(DEVICE_RHYTHM, base_address + bank_select + aux_select + i, (uint)commandList[(int)i]);
             }
         }
