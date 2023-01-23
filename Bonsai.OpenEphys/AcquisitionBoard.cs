@@ -148,6 +148,8 @@ namespace Bonsai.OpenEphys
             // Set sample rate and upload all auxiliary SPI command sequences.
             ChangeSampleRate(SampleRate);
 
+            UploadCommonCommands();
+
             // Run ADC calibration
             RunCalibration();
 
@@ -177,6 +179,50 @@ namespace Bonsai.OpenEphys
             chipRegisters = new Rhd2000Registers(sampleRate);
             var commandList = new List<int>();
 
+
+
+            // For the AuxCmd3 slot, we will create three command sequences.  All sequences
+            // will configure and read back the RHD2000 chip registers, but one sequence will
+            // also run ADC calibration.  Another sequence will enable amplifier 'fast settle'.
+
+            // Before generating register configuration command sequences, set amplifier
+            // bandwidth parameters.
+            chipRegisters.SetDspCutoffFreq(DspCutoffFrequency);
+            chipRegisters.SetLowerBandwidth(LowerBandwidth);
+            chipRegisters.SetUpperBandwidth(UpperBandwidth);
+            chipRegisters.EnableDsp(DspEnabled);
+
+            // Upload version with ADC calibration to AuxCmd3 RAM Bank 0.
+            var sequenceLength = chipRegisters.CreateCommandListRegisterConfig(commandList, true);
+            board.UploadCommandList(commandList, AuxCmdSlot.AuxCmd3, 0);
+            board.SelectAuxCommandLength(AuxCmdSlot.AuxCmd3, 0, sequenceLength - 1);
+
+            // Upload version with no ADC calibration to AuxCmd3 RAM Bank 1.
+            sequenceLength = chipRegisters.CreateCommandListRegisterConfig(commandList, false);
+            board.UploadCommandList(commandList, AuxCmdSlot.AuxCmd3, 1);
+            board.SelectAuxCommandLength(AuxCmdSlot.AuxCmd3, 0, sequenceLength - 1);
+
+            // Upload version with fast settle enabled to AuxCmd3 RAM Bank 2.
+            chipRegisters.SetFastSettle(true);
+            sequenceLength = chipRegisters.CreateCommandListRegisterConfig(commandList, false);
+            board.UploadCommandList(commandList, AuxCmdSlot.AuxCmd3, 2);
+            board.SelectAuxCommandLength(AuxCmdSlot.AuxCmd3, 0, sequenceLength - 1);
+            chipRegisters.SetFastSettle(false);
+
+            UpdateRegisterConfiguration(fastSettle: false);
+        }
+
+        /// <summary>
+        /// Uploads command lists not related to sample rate, so they only need to be set once.
+        /// </summary>
+        void UploadCommonCommands()
+        {
+            // Set up an RHD2000 register object using this sample rate to
+            // optimize MUX-related register settings.
+            var sampleRate = board.GetSampleRate();
+            chipRegisters = new Rhd2000Registers(sampleRate);
+            var commandList = new List<int>();
+
             // Create a command list for the AuxCmd1 slot.  This command sequence will create a 250 Hz,
             // zero-amplitude sine wave (i.e., a flatline).  We will change this when we want to perform
             // impedance testing.
@@ -198,35 +244,7 @@ namespace Bonsai.OpenEphys
             board.SelectAuxCommandBank(BoardPort.PortC, AuxCmdSlot.AuxCmd2, 0);
             board.SelectAuxCommandBank(BoardPort.PortD, AuxCmdSlot.AuxCmd2, 0);
 
-            // For the AuxCmd3 slot, we will create three command sequences.  All sequences
-            // will configure and read back the RHD2000 chip registers, but one sequence will
-            // also run ADC calibration.  Another sequence will enable amplifier 'fast settle'.
 
-            // Before generating register configuration command sequences, set amplifier
-            // bandwidth parameters.
-            chipRegisters.SetDspCutoffFreq(DspCutoffFrequency);
-            chipRegisters.SetLowerBandwidth(LowerBandwidth);
-            chipRegisters.SetUpperBandwidth(UpperBandwidth);
-            chipRegisters.EnableDsp(DspEnabled);
-
-            // Upload version with ADC calibration to AuxCmd3 RAM Bank 0.
-            sequenceLength = chipRegisters.CreateCommandListRegisterConfig(commandList, true);
-            board.UploadCommandList(commandList, AuxCmdSlot.AuxCmd3, 0);
-            board.SelectAuxCommandLength(AuxCmdSlot.AuxCmd3, 0, sequenceLength - 1);
-
-            // Upload version with no ADC calibration to AuxCmd3 RAM Bank 1.
-            sequenceLength = chipRegisters.CreateCommandListRegisterConfig(commandList, false);
-            board.UploadCommandList(commandList, AuxCmdSlot.AuxCmd3, 1);
-            board.SelectAuxCommandLength(AuxCmdSlot.AuxCmd3, 0, sequenceLength - 1);
-
-            // Upload version with fast settle enabled to AuxCmd3 RAM Bank 2.
-            chipRegisters.SetFastSettle(true);
-            sequenceLength = chipRegisters.CreateCommandListRegisterConfig(commandList, false);
-            board.UploadCommandList(commandList, AuxCmdSlot.AuxCmd3, 2);
-            board.SelectAuxCommandLength(AuxCmdSlot.AuxCmd3, 0, sequenceLength - 1);
-            chipRegisters.SetFastSettle(false);
-
-            UpdateRegisterConfiguration(fastSettle: false);
         }
 
         void UpdateRegisterConfiguration(bool fastSettle)
