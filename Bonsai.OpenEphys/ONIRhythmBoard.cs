@@ -1193,5 +1193,10 @@ namespace Bonsai.OpenEphys
             val = (val & ~mask) | (value & mask);
             ctx.WriteRegister(dev_idx, addr, val);
         }
+
+        public uint GetGatewareVersion()
+        {
+            return ctx.ReadRegister(254, 2);
+        }
     }
 }

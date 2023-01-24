@@ -1,11 +1,11 @@
-﻿using System;
+﻿using oni;
+using Rhythm.Net;
+using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Reactive.Linq;
 using System.Threading;
-using System.ComponentModel;
-using Rhythm.Net;
-
-using oni;
+using System.Threading.Tasks;
 
 namespace Bonsai.OpenEphys
 {
@@ -27,8 +27,6 @@ namespace Bonsai.OpenEphys
         uint lastMemUSage;
         uint memoryWords;
 
-        Rhd2000Registers chipRegisters;
-
         public AcquisitionBoard()
         {
             SampleRate = AmplifierSampleRate.SampleRate20000Hz;
@@ -40,6 +38,10 @@ namespace Bonsai.OpenEphys
             BufferCount = 256;
             board = null;
             lastMemUSage = 0;
+            using (var ctx = new ONIRhythmBoard(-1))
+            {
+                SetGatewareVersion(ctx.GetGatewareVersion());
+            }
         }
 
         [Category(BoardCategory)]
@@ -73,6 +75,11 @@ namespace Bonsai.OpenEphys
         public double DspCutoffFrequency { get; set; }
 
         [Category(BoardCategory)]
+        [Externalizable(false)]
+        [ReadOnly(true)]
+        public string GatewareVersion { get; set; }
+
+        [Category(BoardCategory)]
         [Description("Specifies whether the DSP offset removal filter is enabled.")]
         public bool DspEnabled { get; set; }
 
@@ -91,54 +98,53 @@ namespace Bonsai.OpenEphys
         [Category(CableDelayCategory)]
         [Description("The optional delay for sampling the MISO line in port D, in integer clock steps.")]
         public int? CableDelayD { get; set; }
-    
+
+        private void SetGatewareVersion(uint ver)
+        {
+            GatewareVersion = "v" + ((ver >> 8) & 0xFF).ToString() + "." + (ver & 0xFF).ToString();
+        }
+
         public override IObservable<OpenEphysRhythmDataFrame> Generate()
         {
-            return Observable.Using(
-                () =>
-                {
-                    var ctx = new ONIRhythmBoard(BoardIndex);
+            return Observable.Create<OpenEphysRhythmDataFrame>((observer, cancellationToken) =>
+            {
+                return Task.Factory.StartNew(() =>
+               {
+                   try
+                   {
+                       board = new ONIRhythmBoard(BoardIndex);
+                       InitSequence();
+                       SetGatewareVersion(board.GetGatewareVersion());
+                       board.SetTtlMode(0);
+                       board.SetTtlOut(0);
+                       board.SetContinuousRunMode(true);
+                       board.EnableExternalFastSettle(ExternalFastSettleEnabled);
+                       board.setMemDevice(BufferCount, out memoryWords);
 
-                    return ctx;
-                },
-                (ctx) => Observable.Create<OpenEphysRhythmDataFrame>(observer =>
-                {
-                    board = ctx; //I don't really like doing this, but the alternatives are either pass this parameter to every method of this class, or making an intermediate class with all the methods and leave this one almost empty, and I don't like those either.
-                    InitSequence();
-                    board.SetTtlMode(0);
-                    board.SetTtlOut(0);
-                    board.SetContinuousRunMode(true);
-                    board.EnableExternalFastSettle(ExternalFastSettleEnabled);
-                    board.setMemDevice(BufferCount, out memoryWords);
+                       board.Run();
+                       while (!cancellationToken.IsCancellationRequested)
+                       {
+                           var dataBlock = board.readData(BufferCount, cancellationToken, ref lastMemUSage);
+                           var frame = new OpenEphysRhythmDataFrame(dataBlock, (double)lastMemUSage / memoryWords * 100.0);
+                           observer.OnNext(frame);
+                       }
+                   }
+                   finally
+                   {
+                       board.SetContinuousRunMode(false);
+                       board.SetMaxTimeStep(0);
+                       board.Dispose();
+                       board = null;
+                   }
 
-                    board.Run();
-                    CancellationTokenSource cancelSource = new CancellationTokenSource();
-                    CancellationToken cancel = cancelSource.Token;
-
-                    var thread = new Thread(() =>
-                    {
-                        while (!cancel.IsCancellationRequested)
-                        {
-                            var dataBlock = board.readData(BufferCount, cancel, ref lastMemUSage);
-                            var frame = new OpenEphysRhythmDataFrame(dataBlock, (double)lastMemUSage / memoryWords * 100.0);
-                            observer.OnNext(frame);
-                        }
-                    });
-
-                    thread.Start();
-
-                    return () =>
-                    {
-                        cancelSource.Cancel();
-                        if (thread != Thread.CurrentThread) thread.Join();
-                        ctx.Stop();
-                        board = null;
-                    };
-                })
-                .PublishReconnectable()
-                .RefCount()
-            );
-        } // ctx.Dispose() is called.
+               },
+                cancellationToken,
+                TaskCreationOptions.LongRunning,
+                TaskScheduler.Default);
+            })
+            .PublishReconnectable()
+            .RefCount();
+        }
 
         private void InitSequence()
         {
@@ -176,7 +182,7 @@ namespace Bonsai.OpenEphys
             // Set up an RHD2000 register object using this sample rate to
             // optimize MUX-related register settings.
             var sampleRate = board.GetSampleRate();
-            chipRegisters = new Rhd2000Registers(sampleRate);
+            Rhd2000Registers chipRegisters = new Rhd2000Registers(sampleRate);
             var commandList = new List<int>();
 
 
@@ -220,7 +226,7 @@ namespace Bonsai.OpenEphys
             // Set up an RHD2000 register object using this sample rate to
             // optimize MUX-related register settings.
             var sampleRate = board.GetSampleRate();
-            chipRegisters = new Rhd2000Registers(sampleRate);
+            Rhd2000Registers chipRegisters = new Rhd2000Registers(sampleRate);
             var commandList = new List<int>();
 
             // Create a command list for the AuxCmd1 slot.  This command sequence will create a 250 Hz,
