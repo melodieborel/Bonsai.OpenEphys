@@ -539,6 +539,7 @@ namespace Bonsai.OpenEphys
             //This should really be just a refresh of the device map, but clroni does not allow it
             ctx?.Dispose();
             InitCtx();
+            //ctx.Refresh(); //seems to trigger a firmware bug with the memory usage device at the moment
         }
 
         /// <summary>

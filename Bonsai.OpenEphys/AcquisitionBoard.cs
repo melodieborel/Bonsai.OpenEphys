@@ -1,11 +1,11 @@
-﻿using oni;
-using Rhythm.Net;
+﻿using Rhythm.Net;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Reactive.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Xml.Serialization;
 
 namespace Bonsai.OpenEphys
 {
@@ -38,9 +38,15 @@ namespace Bonsai.OpenEphys
             BufferCount = 256;
             board = null;
             lastMemUSage = 0;
-            using (var ctx = new ONIRhythmBoard(-1))
+            try
             {
-                SetGatewareVersion(ctx.GetGatewareVersion());
+                using (var ctx = new ONIRhythmBoard(-1))
+                {
+                    SetGatewareVersion(ctx.GetGatewareVersion());
+                }
+            } catch
+            {
+                SetGatewareVersion(null);
             }
         }
 
@@ -77,7 +83,8 @@ namespace Bonsai.OpenEphys
         [Category(BoardCategory)]
         [Externalizable(false)]
         [ReadOnly(true)]
-        public string GatewareVersion { get; set; }
+        [XmlIgnore]
+        public string GatewareVersion { get; private set; }
 
         [Category(BoardCategory)]
         [Description("Specifies whether the DSP offset removal filter is enabled.")]
@@ -99,9 +106,12 @@ namespace Bonsai.OpenEphys
         [Description("The optional delay for sampling the MISO line in port D, in integer clock steps.")]
         public int? CableDelayD { get; set; }
 
-        private void SetGatewareVersion(uint ver)
+        private void SetGatewareVersion(uint? ver)
         {
-            GatewareVersion = "v" + ((ver >> 8) & 0xFF).ToString() + "." + (ver & 0xFF).ToString();
+            if (ver.HasValue)
+                GatewareVersion = "v" + ((ver >> 8) & 0xFF).ToString() + "." + (ver & 0xFF).ToString();
+            else
+                GatewareVersion = "N/A";
         }
 
         public override IObservable<OpenEphysRhythmDataFrame> Generate()
@@ -125,7 +135,7 @@ namespace Bonsai.OpenEphys
                        while (!cancellationToken.IsCancellationRequested)
                        {
                            var dataBlock = board.readData(BufferCount, cancellationToken, ref lastMemUSage);
-                           var frame = new OpenEphysRhythmDataFrame(dataBlock, (double)lastMemUSage / memoryWords * 100.0);
+                            var frame = new OpenEphysRhythmDataFrame(dataBlock, (double)lastMemUSage / memoryWords * 100.0);
                            observer.OnNext(frame);
                        }
                    }
