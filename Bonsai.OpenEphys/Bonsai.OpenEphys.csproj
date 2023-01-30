@@ -3,22 +3,22 @@
   <PropertyGroup>
     <Title>Bonsai - Open Ephys Library</Title>
     <Description>Bonsai Library for controlling some Open Ephys hardware.</Description>
-    <PackageTags>Bonsai Rx Open Ephys ONI Neural Interface Electrophysiology Miniscope</PackageTags>
+    <PackageTags>Bonsai Rx Open Ephys ONI Neural Interface Electrophysiology</PackageTags>
     <TargetFramework>net472</TargetFramework>
     <Version>1.0.0</Version>
-    <Authors>Jon Newman</Authors>
-    <Company>MIT</Company>
-    <Copyright>Copyright © Jonathan Newman 2021</Copyright>
+    <Authors>Aarón Cuevas López</Authors>
+    <Company>Open Ephys</Company>
+    <Copyright>Copyright © Aarón Cuevas López</Copyright>
     <AssemblyVersion>1.0.0.0</AssemblyVersion>
     <FileVersion>1.0.0.0</FileVersion>
-    <PackageProjectUrl>https://github.com/jonnew/Bonsai.OpenEphys</PackageProjectUrl>
+    <PackageProjectUrl>https://github.com/open-ephys/Bonsai.OpenEphys</PackageProjectUrl>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <Platforms>AnyCPU;x64</Platforms>
     <PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>
     <Product>Bonsai.OpenEphys</Product>
     <PackageId>Bonsai.OpenEphys</PackageId>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-    <RepositoryUrl>https://github.com/jonnew/Bonsai.OpenEphys</RepositoryUrl>
+    <RepositoryUrl>https://github.com/open-ephys/Bonsai.OpenEphys</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <EnableNETAnalyzers>true</EnableNETAnalyzers>
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
@@ -42,7 +42,7 @@
 
   <ItemGroup>
     <PackageReference Include="Bonsai.Core" Version="2.7.1" />
-    <PackageReference Include="clroni" Version="4.4.1" />
+    <PackageReference Include="clroni" Version="5.0.0" />
     <PackageReference Include="OpenCV.Net" Version="3.4.1" />
     <PackageReference Include="Rhythm.Net" Version="1.5.0" />
   </ItemGroup>
