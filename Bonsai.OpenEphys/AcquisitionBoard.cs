@@ -2,7 +2,9 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Reactive;
 using System.Reactive.Linq;
+using System.Reactive.Subjects;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Xml.Serialization;
@@ -26,6 +28,8 @@ namespace Bonsai.OpenEphys
         double cableLengthPortD;
         uint lastMemUSage;
         uint memoryWords;
+        uint boardVer;
+        uint regOffset = 1;
 
         public AcquisitionBoard()
         {
@@ -47,6 +51,21 @@ namespace Bonsai.OpenEphys
             } catch
             {
                 SetGatewareVersion(null);
+            }
+        }
+
+        BehaviorSubject<bool> boardLed = new BehaviorSubject<bool>(false);
+
+        [Category(BoardCategory)]
+        [Description("Board LED status")]
+        public bool BoardLeds {
+            get
+            {
+                return boardLed.Value;
+            }
+            set
+            {
+              boardLed.OnNext(value);
             }
         }
 
@@ -120,27 +139,43 @@ namespace Bonsai.OpenEphys
             {
                 return Task.Factory.StartNew(() =>
                {
+                   IDisposable ledProp = null;
                    try
                    {
                        board = new ONIRhythmBoard(BoardIndex);
+                       board.ResetBoard();
+
+                       boardVer = board.GetGatewareVersion();
+
+                       if (boardVer <= 0x0004)
+                       {
+                           regOffset = 1;
+                       } else
+                       {
+                           regOffset = 0;
+                       }
+
                        InitSequence();
-                       SetGatewareVersion(board.GetGatewareVersion());
+                       board.SetBoardLeds(BoardLeds);
+                       SetGatewareVersion(boardVer);
                        board.SetTtlMode(0);
                        board.SetTtlOut(0);
                        board.SetContinuousRunMode(true);
                        board.EnableExternalFastSettle(ExternalFastSettleEnabled);
                        board.setMemDevice(BufferCount, out memoryWords);
-
                        board.Run();
+
+                       ledProp = boardLed.Subscribe(x => board.SetBoardLeds(x));
                        while (!cancellationToken.IsCancellationRequested)
                        {
                            var dataBlock = board.readData(BufferCount, cancellationToken, ref lastMemUSage);
-                            var frame = new OpenEphysRhythmDataFrame(dataBlock, (double)lastMemUSage / memoryWords * 100.0);
+                           var frame = new OpenEphysRhythmDataFrame(dataBlock, (double)lastMemUSage / memoryWords * 100.0);
                            observer.OnNext(frame);
                        }
                    }
                    finally
                    {
+                       ledProp?.Dispose();
                        board.SetContinuousRunMode(false);
                        board.SetMaxTimeStep(0);
                        board.Dispose();
@@ -471,16 +506,15 @@ namespace Bonsai.OpenEphys
             // This is just used to verify that we are getting good data over the SPI
             // communication channel.
             
-            //Due to the way the firmware works, all aux results are shifted one sample from the original codebase
             var intanChipPresent = (
-                (char)dataBlock.AuxData[stream][2, 32 + 1] == 'I' &&
-                (char)dataBlock.AuxData[stream][2, 33 + 1] == 'N' &&
-                (char)dataBlock.AuxData[stream][2, 34 + 1] == 'T' &&
-                (char)dataBlock.AuxData[stream][2, 35 + 1] == 'A' &&
-                (char)dataBlock.AuxData[stream][2, 36 + 1] == 'N' &&
-                (char)dataBlock.AuxData[stream][2, 24 + 1] == 'R' &&
-                (char)dataBlock.AuxData[stream][2, 25 + 1] == 'H' &&
-                (char)dataBlock.AuxData[stream][2, 26 + 1] == 'D');
+                (char)dataBlock.AuxData[stream][2, 32 + regOffset] == 'I' &&
+                (char)dataBlock.AuxData[stream][2, 33 + regOffset] == 'N' &&
+                (char)dataBlock.AuxData[stream][2, 34 + regOffset] == 'T' &&
+                (char)dataBlock.AuxData[stream][2, 35 + regOffset] == 'A' &&
+                (char)dataBlock.AuxData[stream][2, 36 + regOffset] == 'N' &&
+                (char)dataBlock.AuxData[stream][2, 24 + regOffset] == 'R' &&
+                (char)dataBlock.AuxData[stream][2, 25 + regOffset] == 'H' &&
+                (char)dataBlock.AuxData[stream][2, 26 + regOffset] == 'D');
 
             // If the SPI communication is bad, return -1.  Otherwise, return the Intan
             // chip ID number stored in ROM regstier 63.
@@ -491,8 +525,8 @@ namespace Bonsai.OpenEphys
             }
             else
             {
-                register59Value = dataBlock.AuxData[stream][2, 23 + 1]; // Register 59
-                return dataBlock.AuxData[stream][2, 19 + 1]; // chip ID (Register 63)
+                register59Value = dataBlock.AuxData[stream][2, 23 + regOffset]; // Register 59
+                return dataBlock.AuxData[stream][2, 19 + regOffset]; // chip ID (Register 63)
             }
         }
 

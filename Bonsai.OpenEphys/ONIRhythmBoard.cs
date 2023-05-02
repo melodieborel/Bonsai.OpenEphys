@@ -129,7 +129,8 @@ namespace Bonsai.OpenEphys
         {
             int i;
 
-            ResetBoard();
+           //Board must be manually reset before this call
+           
             SetSampleRate(AmplifierSampleRate.SampleRate30000Hz);
             SelectAuxCommandBank(BoardPort.PortA, AuxCmdSlot.AuxCmd1, 0);
             SelectAuxCommandBank(BoardPort.PortB, AuxCmdSlot.AuxCmd1, 0);
@@ -234,6 +235,15 @@ namespace Bonsai.OpenEphys
             SetExternalDigOutChannel(BoardPort.PortB, 0);
             SetExternalDigOutChannel(BoardPort.PortC, 0);
             SetExternalDigOutChannel(BoardPort.PortD, 0);
+        }
+
+        ///<summary>
+        ///Sets the board LED state
+        ///</summary>
+        public void SetBoardLeds(bool enable)
+        {
+            uint val = enable ? (uint)(1 << (int)RhythmMode.LED_ENABLE) : 0;
+            WriteRegMask(DEVICE_RHYTHM, (uint)RhythmRegisters.MODE, val, (1 << (int)RhythmMode.LED_ENABLE));
         }
 
         /// <summary>

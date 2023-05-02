@@ -2,15 +2,13 @@
 
   <PropertyGroup>
     <Title>Bonsai - Open Ephys Library</Title>
-    <Description>Bonsai Library for controlling some Open Ephys hardware.</Description>
+    <Description>Bonsai Library for controlling some Open Ephys hardware</Description>
     <PackageTags>Bonsai Rx Open Ephys ONI Neural Interface Electrophysiology</PackageTags>
     <TargetFramework>net472</TargetFramework>
-    <Version>1.0.0</Version>
+    <Version>1.1.0</Version>
     <Authors>Aarón Cuevas López</Authors>
     <Company>Open Ephys</Company>
     <Copyright>Copyright © Aarón Cuevas López</Copyright>
-    <AssemblyVersion>1.0.0.0</AssemblyVersion>
-    <FileVersion>1.0.0.0</FileVersion>
     <PackageProjectUrl>https://github.com/open-ephys/Bonsai.OpenEphys</PackageProjectUrl>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <Platforms>AnyCPU;x64</Platforms>
@@ -22,6 +20,7 @@
     <RepositoryType>git</RepositoryType>
     <EnableNETAnalyzers>true</EnableNETAnalyzers>
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <AssemblyVersion>1.1.0.0</AssemblyVersion>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
