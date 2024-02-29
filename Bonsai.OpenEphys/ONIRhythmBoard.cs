@@ -1177,12 +1177,12 @@ namespace Bonsai.OpenEphys
                 oni.Frame frame = ctx.ReadFrame();
                 if (frame.DeviceAddress == DEVICE_MEM)
                 {
-                    uint[] data = frame.Data<uint>();
+                    uint[] data = frame.GetData<uint>();
                     lastMem = data[2];
                 }
                 else if (frame.DeviceAddress == DEVICE_RHYTHM)
                 {
-                    ushort[] data = frame.Data<ushort>();
+                    ushort[] data = frame.GetData<ushort>();
                     dataBlock.fillFromSample(data, sample);
                     sample++;
                 }
